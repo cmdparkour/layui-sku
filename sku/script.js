@@ -1,3 +1,7 @@
+/*
+ * author: 罗茜
+ */
+
 layui.use(['jquery', 'form'], function() {
   var $ = layui.jquery,
       form = layui.form;
@@ -48,19 +52,25 @@ layui.use(['jquery', 'form'], function() {
     this.item = [];
     this.data = [];
     this.elem = null;
-    this.chooseItem = {};
-    this.descartData = [];
-    this.chooseData = [];
+    this.tableId = null;
+    this.options = null; // 所有类似价格、库存等的dom
+    this.chooseItem = {}; // 已选项父类集合
+    this.descartData = []; // 所有可能的笛卡儿积集合
+    this.chooseData = []; // 已选中的笛卡儿积集合
   }
   sku.prototype = {
-    render: function(elem, item, data) {
+    render: function(elem, item, data, options) {
       this.elem = elem;
+      this.tableId = this.elem + '-table';
       this.item = item;
       this.data = data;
-      this.calcDescartes();
+      this.options = options;
+      this.calcDescartes(); 
       this.initForm();
+      this.initTable();
     },
-    initForm() {
+    // 初始化form表单
+    initForm: function() {
       var itemList = [];
       for (var i in this.item) {
         var row = this.item[i];
@@ -103,9 +113,15 @@ layui.use(['jquery', 'form'], function() {
             }
           }
         }
-        console.log(this.chooseItem);
-        // this.calcDescartes(this.chooseItem);
+        this.chooseData = this.calcDescartObj(this.chooseItem);
+        this.renderInTable();
       });
+    },
+    initTable: function() {
+      $(this.elem).append(`
+        <table id="${ this.tableId.replace('#', '') }" class="layui-table" cellspacing="0" cellpadding="0">
+        </table>
+      `);
     },
     // 计算数组笛卡尔积
     calcDescartes: function() {
@@ -120,10 +136,10 @@ layui.use(['jquery', 'form'], function() {
         col.forEach(function (c) {
           set.children.forEach(function(s) {
             var item = {
-              [set.key]: s.label
+              [set.key]: s
             };
             if (key) {
-              item[key] = c.label;
+              item[key] = c;
             } else {
               Object.assign(item, c);
             }
@@ -133,12 +149,119 @@ layui.use(['jquery', 'form'], function() {
         return res;
       });
     },
+    // 计算对象笛卡儿积
+    calcDescartObj: function(obj) {
+      var arr = [];
+      for (var i in obj) {
+        var list = [];
+        for (var y in obj[i]) {
+          list.push({ [i]: obj[i][y] });
+        }
+        arr.push(list);
+      }
+      var data = [].reduce.call(arr, function(col, sol) {
+        var res = [];
+        if (sol.length === 0) {
+          return col;
+        }
+        if (col.length === 0) {
+          return sol;
+        }
+        col.forEach(function(a) {
+          sol.forEach(function(b) {
+            var c = JSON.parse(JSON.stringify(a));
+            Object.assign(c, b);
+            res.push(c);
+          });
+        });
+        return res;
+      })
+      return data;
+    },
     // 渲染进页面，合并相同项
-    renderInHtml: function() {
-      
+    renderInTable: function() {
+      // 表格头部数据生成
+      var theadArr = [];
+      for (var i in this.chooseItem) {
+        for (var y in this.item) {
+          if (i === this.item[y].key && this.chooseItem[i].length !== 0) {
+            theadArr.push(this.item[y].label);
+          }
+        }
+      }
+      theadArr = theadArr.concat(this.options.head);
+      for (var i in theadArr) {
+        theadArr[i] = `<td style="text-align: center;">${ theadArr[i] }</td>`;
+      }
+
+      // 表格body数据生成
+      var tbodyArr = [];
+      for (var i in this.chooseData) {
+        if (this.chooseData[i].length === 0) {
+          return;
+        }
+        var tr = [];
+        for (var y in this.chooseData[i]) {
+          var count = this.calcRowspan(i, y);
+          if (count === 0) {
+            continue;
+          }
+          var td = `<td rowspan="${ count }" style="text-align: center;">${ this.chooseData[i][y].label }</td>`;
+          tr.push(td);
+        }
+        for (var x in this.options.body) {
+          tr.push(`<td>${ this.options.body[x] }</td>`);
+        }
+        tr = `<tr>${ tr.join('') }</tr>`;
+        tbodyArr.push(tr);
+      }
+      var table = `
+        <thead>
+          <tr>
+            ${ theadArr.join('') }
+          </tr>
+        </thead>
+        <tbody>
+          ${ tbodyArr.join('') }
+        </tbody>
+      `;
+      $(this.tableId).html(table);
+    },
+    // 计算间隔数据
+    calcRowspan(index, type) {
+      var length = [],
+          typeArr = [];
+      for (var i in this.chooseItem) {
+        length.push(this.chooseItem[i].length);
+        typeArr.push(i);
+      }
+      // 开始计算
+      for (var i in typeArr) {
+        if (type === typeArr[i]) {
+          var count = 1;
+          for (var y in length) {
+            if (parseInt(i) < parseInt(y)) {
+              count *= length[y];
+            }
+          }
+          if (index % count === 0) {
+            return count;
+          } else {
+            return 0;
+          }
+        }
+      }
     }
   }
 
   var SKU = new sku();
-  SKU.render('#sku', skuItem, skuData);
+  var options = {
+    head: ['价格','库存'],
+    name: ['price', 'sku'],
+    body: [
+      `<input type="text" name="price" placeholder="请输入价格" autocomplete="off" class="layui-input">`,
+      `<input type="text" name="sku" placeholder="请输入库存" autocomplete="off" class="layui-input">`
+    ]
+  };
+  SKU.render('#sku', skuItem, skuData, options);
 });
