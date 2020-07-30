@@ -53,21 +53,28 @@ layui.use(['jquery', 'form'], function() {
     this.data = [];
     this.elem = null;
     this.tableId = null;
-    this.options = null; // 所有类似价格、库存等的dom
+    this.options = {
+      head: ['价格','库存'],
+      name: ['price', 'sku'],
+      body: [
+        `<input type="text" name="price" placeholder="请输入价格" autocomplete="off" class="layui-input">`,
+        `<input type="text" name="sku" placeholder="请输入库存" autocomplete="off" class="layui-input">`
+      ]
+    }; // 所有类似价格、库存等的dom
     this.chooseItem = {}; // 已选项父类集合
     this.descartData = []; // 所有可能的笛卡儿积集合
     this.chooseData = []; // 已选中的笛卡儿积集合
   }
   sku.prototype = {
-    render: function(elem, item, data, options) {
+    render: function(elem, item, data) {
       this.elem = elem;
       this.tableId = this.elem + '-table';
       this.item = item;
       this.data = data;
-      this.options = options;
       this.calcDescartes(); 
       this.initForm();
       this.initTable();
+      this.watch();
     },
     // 初始化form表单
     initForm: function() {
@@ -182,8 +189,8 @@ layui.use(['jquery', 'form'], function() {
     renderInTable: function() {
       // 表格头部数据生成
       var theadArr = [];
-      for (var i in this.chooseItem) {
-        for (var y in this.item) {
+      for (var y in this.item) {
+        for (var i in this.chooseItem) {
           if (i === this.item[y].key && this.chooseItem[i].length !== 0) {
             theadArr.push(this.item[y].label);
           }
@@ -197,9 +204,6 @@ layui.use(['jquery', 'form'], function() {
       // 表格body数据生成
       var tbodyArr = [];
       for (var i in this.chooseData) {
-        if (this.chooseData[i].length === 0) {
-          return;
-        }
         var tr = [];
         for (var y in this.chooseData[i]) {
           var count = this.calcRowspan(i, y);
@@ -212,7 +216,7 @@ layui.use(['jquery', 'form'], function() {
         for (var x in this.options.body) {
           tr.push(`<td>${ this.options.body[x] }</td>`);
         }
-        tr = `<tr>${ tr.join('') }</tr>`;
+        tr = `<tr key="${ i }">${ tr.join('') }</tr>`;
         tbodyArr.push(tr);
       }
       var table = `
@@ -228,12 +232,14 @@ layui.use(['jquery', 'form'], function() {
       $(this.tableId).html(table);
     },
     // 计算间隔数据
-    calcRowspan(index, type) {
+    calcRowspan: function(index, type) {
       var length = [],
           typeArr = [];
       for (var i in this.chooseItem) {
-        length.push(this.chooseItem[i].length);
-        typeArr.push(i);
+        if (this.chooseItem[i].length) {
+          length.push(this.chooseItem[i].length);
+          typeArr.push(i);
+        }
       }
       // 开始计算
       for (var i in typeArr) {
@@ -251,17 +257,19 @@ layui.use(['jquery', 'form'], function() {
           }
         }
       }
+    },
+    watch: function() {
+
+    },
+    // 获取总数据
+    getData: function() {
+      return this.chooseData;
     }
   }
 
   var SKU = new sku();
-  var options = {
-    head: ['价格','库存'],
-    name: ['price', 'sku'],
-    body: [
-      `<input type="text" name="price" placeholder="请输入价格" autocomplete="off" class="layui-input">`,
-      `<input type="text" name="sku" placeholder="请输入库存" autocomplete="off" class="layui-input">`
-    ]
-  };
-  SKU.render('#sku', skuItem, skuData, options);
+  SKU.render('#sku', skuItem, skuData);
+  $('#getData').click(function() {
+    console.log(SKU.getData())
+  });
 });
