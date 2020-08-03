@@ -120,9 +120,19 @@ layui.use(['jquery', 'form'], function() {
             }
           }
         }
-        this.chooseData = this.calcDescartObj(this.chooseItem);
+        var newData = this.calcDescartObj(this.chooseItem);
+        this.chooseData = this.connectOldNew(newData);
         this.renderInTable();
       });
+    },
+    // 合并相同项的数据
+    connectOldNew: function(newData) {
+      for (var n in newData) {
+         for (var c in this.chooseData) {
+           
+         }
+      }
+      return newData;
     },
     initTable: function() {
       $(this.elem).append(`
@@ -200,7 +210,6 @@ layui.use(['jquery', 'form'], function() {
       for (var i in theadArr) {
         theadArr[i] = `<td style="text-align: center;">${ theadArr[i] }</td>`;
       }
-
       // 表格body数据生成
       var tbodyArr = [];
       for (var i in this.chooseData) {
@@ -258,8 +267,17 @@ layui.use(['jquery', 'form'], function() {
         }
       }
     },
+    // 监听事件
     watch: function() {
-
+      var _this = this;
+      $(document).on('blur', '[name="price"], [name="sku"]', function() {
+        var row = {
+          name: $(this).attr('name'),
+          value: this.value,
+          key: $(this).parents('tr').attr('key')
+        }
+        _this.chooseData[row.key][row.name] = row.value;
+      });
     },
     // 获取总数据
     getData: function() {
