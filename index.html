@@ -4,11 +4,73 @@
   <meta charset="UTF-8">
   <title>Document</title>
   <link rel="stylesheet" type="text/css" href="https://www.layuicdn.com/layui/css/layui.css" />
+  <style>
+    #sku {
+      margin: 20px;
+    }
+    #getData {
+      margin: 20px;
+    }
+  </style>
 </head>
 <body>
   <div id="sku"></div>
   <button type="button" class="layui-btn" id="getData">获取当前数据</button>
   <script src="https://www.layuicdn.com/layui/layui.js"></script>
-  <script src="./sku/script.js"></script>
+  <script>
+    layui.config({
+      base: './sku/'
+    })
+    .extend({
+      sku: 'script'
+    })
+    .use(['jquery', 'sku'], function() {
+      var $ = layui.jquery,
+          sku = layui.sku;
+      var SKU = new sku('#sku');
+      var skuItem = [
+        {
+          id: 1,
+          label: '颜色',
+          key: 'color',
+          children: [
+            { id: 1, label: '红色' },
+            { id: 2, label: '阿曼湾色' },
+            { id: 3, label: '白色' },
+            { id: 4, label: '哈色' },
+            { id: 5, label: '绿色' },
+            { id: 6, label: '蓝色' },
+            { id: 7, label: '黑色' }
+          ]
+        },
+        {
+          id: 2,
+          label: '尺寸',
+          key: 'size',
+          children: [
+            { id: 1, label: 'M' },
+            { id: 2, label: 'X' },
+            { id: 3, label: 'XL' },
+            { id: 4, label: 'XM' },
+            { id: 5, label: 'S' },
+            { id: 6, label: 'ML' }
+          ]
+        },
+        {
+          id: 3,
+          label: '用途',
+          key: 'use',
+          children: [
+            { id: 1, label: '吃饭' },
+            { id: 2, label: '睡觉' },
+            { id: 3, label: '游戏' },
+            { id: 4, label: '开心' },
+            { id: 5, label: '讲故事' }
+          ]
+        },
+      ];
+      SKU.render(skuItem);
+    });
+  </script>
 </body>
 </html>
