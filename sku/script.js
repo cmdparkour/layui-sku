@@ -2,59 +2,29 @@
  * author: 罗茜
  */
 
-layui.use(['jquery', 'form'], function() {
+layui.define(['jquery', 'form'], function(exports) {
   var $ = layui.jquery,
       form = layui.form;
-  var elem = '#sku';
-  var skuItem = [
-    {
-      id: 1,
-      label: '颜色',
-      key: 'color',
-      children: [
-        { id: 1, label: '红色' },
-        { id: 2, label: '阿曼湾色' },
-        { id: 3, label: '白色' },
-        { id: 4, label: '哈色' },
-        { id: 5, label: '绿色' },
-        { id: 6, label: '蓝色' },
-        { id: 7, label: '黑色' }
-      ]
-    },
-    {
-      id: 2,
-      label: '尺寸',
-      key: 'size',
-      children: [
-        { id: 1, label: 'M' },
-        { id: 2, label: 'X' },
-        { id: 3, label: 'XL' },
-        { id: 4, label: 'XM' },
-        { id: 5, label: 'S' },
-        { id: 6, label: 'ML' }
-      ]
-    },
-    {
-      id: 3,
-      label: '用途',
-      key: 'use',
-      children: [
-        { id: 1, label: '吃饭' },
-        { id: 2, label: '睡觉' },
-        { id: 3, label: '游戏' },
-        { id: 4, label: '开心' },
-        { id: 5, label: '讲故事' }
-      ]
-    },
-  ];
-  var skuData = [];
-  var sku = function() {
+  var sku = function(elem) {
     this.item = [];
     this.data = [];
-    this.elem = null;
+    this.elem = elem;
+    this.params = {
+      id: 'id',
+      label: 'label',
+      key: 'key',
+      children: 'children',
+      childrenParams: {
+        id: 'id',
+        label: 'label'
+      }
+    };
     this.tableId = null;
     this.options = {
-      head: ['价格','库存'],
+      head: [
+        `<input type="text" name="priceAll" placeholder="请输入价格,批量填充" autocomplete="off" class="layui-input">`,
+        `<input type="text" name="skuAll" placeholder="请输入库存，默认不限量" autocomplete="off" class="layui-input">`
+      ],
       name: ['price', 'sku'],
       body: [
         `<input type="text" name="price" placeholder="请输入价格" autocomplete="off" class="layui-input">`,
@@ -62,16 +32,18 @@ layui.use(['jquery', 'form'], function() {
       ]
     }; // 所有类似价格、库存等的dom
     this.chooseItem = {}; // 已选项父类集合
-    this.descartData = []; // 所有可能的笛卡儿积集合
     this.chooseData = []; // 已选中的笛卡儿积集合
   }
   sku.prototype = {
-    render: function(elem, item, data) {
-      this.elem = elem;
+    render: function(item, data, params) {
       this.tableId = this.elem + '-table';
       this.item = item;
-      this.data = data;
-      this.calcDescartes(); 
+      if (data) {
+        this.data = data;
+      }
+      if (params) {
+        this.params = params;
+      }
       this.initForm();
       this.initTable();
       this.watch();
@@ -82,14 +54,21 @@ layui.use(['jquery', 'form'], function() {
       for (var i in this.item) {
         var row = this.item[i];
         var inputList = [];
-        for (var y in row.children) {
-          var input = `<input type="checkbox" name="${ row.key }" value="${ row.children[y].id }" lay-skin="primary" title="${ row.children[y].label }" lay-filter="skuform">`;
+        for (var y in row[this.params.children]) {
+          var input = `<input type="checkbox" name="${ row[this.params.key] }" value="${ row[this.params.children][y][this.params.childrenParams.id] }" lay-skin="primary" title="${ row[this.params.children][y][this.params.childrenParams.label] }" lay-filter="skuform">`;
           inputList.push(input);
         }
         var item = `
           <div class="layui-form-item">
-            <label class="layui-form-label">${ row.label }</label>
+            <label class="layui-form-label">${ row[this.params.label] }</label>
             <div class="layui-input-block">
+               <input type="text" name="title" placeholder="请选择${ row[this.params.label] }或自定义" autocomplete="off" class="layui-input" style="width: 300px;display: inline;" add="input" key="${ i }" >
+               <button type="button" class="layui-btn" key="${ i }" add="click">
+                <i class="layui-icon layui-icon-add-circle"></i>
+                添加
+               </button>
+            </div>
+            <div class="layui-input-block sku-list layui-bg-gray" style="margin-top: 10px; margin-bottom: 20px; padding: 10px; min-height: 38px;">
               ${ inputList.join('') }
             </div>
           </div>
@@ -103,6 +82,7 @@ layui.use(['jquery', 'form'], function() {
       `;
       $(this.elem).append(html);
       form.render();
+      // 监听复选事件
       form.on('checkbox(skuform)', (data) => {
         var key = $(data.elem).attr('name'),
             label = $(data.elem).attr('title'),
@@ -112,10 +92,10 @@ layui.use(['jquery', 'form'], function() {
           this.chooseItem[key] = new Array();
         }
         if (checked) {
-          this.chooseItem[key].push({ value: value, label: label });
+          this.chooseItem[key].push({ [this.params.childrenParams.id]: value, [this.params.childrenParams.label]: label });
         } else {
           for (var i in this.chooseItem[key]) {
-            if (this.chooseItem[key][i].value === value) {
+            if (this.chooseItem[key][i][this.params.childrenParams.id] === value) {
               this.chooseItem[key].splice(i, 1);
             }
           }
@@ -125,46 +105,21 @@ layui.use(['jquery', 'form'], function() {
         this.renderInTable();
       });
     },
-    // 合并相同项的数据
-    connectOldNew: function(newData) {
-      for (var n in newData) {
-         for (var c in this.chooseData) {
-           
-         }
-      }
-      return newData;
-    },
+    // 初始化表格元素
     initTable: function() {
       $(this.elem).append(`
         <table id="${ this.tableId.replace('#', '') }" class="layui-table" cellspacing="0" cellpadding="0">
         </table>
       `);
     },
-    // 计算数组笛卡尔积
-    calcDescartes: function() {
-      if (this.item.length < 2) return this.item[0] || [];
-      this.descartData = [].reduce.call(this.item, function(col, set){
-        var res = [];
-        var key = '';
-        if (col.children) {
-          key = col.key;
-          col = col.children;
-        }
-        col.forEach(function (c) {
-          set.children.forEach(function(s) {
-            var item = {
-              [set.key]: s
-            };
-            if (key) {
-              item[key] = c;
-            } else {
-              Object.assign(item, c);
-            }
-            res.push(item);
-          });
-        });
-        return res;
-      });
+    // 合并相同项的数据
+    connectOldNew: function(newData) {
+//      for (var n in newData) {
+//         for (var c in this.chooseData) {
+//
+//         }
+//      }
+      return newData;
     },
     // 计算对象笛卡儿积
     calcDescartObj: function(obj) {
@@ -201,8 +156,8 @@ layui.use(['jquery', 'form'], function() {
       var theadArr = [];
       for (var y in this.item) {
         for (var i in this.chooseItem) {
-          if (i === this.item[y].key && this.chooseItem[i].length !== 0) {
-            theadArr.push(this.item[y].label);
+          if (i === this.item[y][this.params.key] && this.chooseItem[i].length !== 0) {
+            theadArr.push(this.item[y][this.params.label]);
           }
         }
       }
@@ -219,7 +174,7 @@ layui.use(['jquery', 'form'], function() {
           if (count === 0) {
             continue;
           }
-          var td = `<td rowspan="${ count }" style="text-align: center;">${ this.chooseData[i][y].label }</td>`;
+          var td = `<td rowspan="${ count }" style="text-align: center;">${ this.chooseData[i][y][this.params.childrenParams.label] }</td>`;
           tr.push(td);
         }
         for (var x in this.options.body) {
@@ -270,6 +225,7 @@ layui.use(['jquery', 'form'], function() {
     // 监听事件
     watch: function() {
       var _this = this;
+      // 监听单项数据的修改
       $(document).on('blur', '[name="price"], [name="sku"]', function() {
         var row = {
           name: $(this).attr('name'),
@@ -278,6 +234,58 @@ layui.use(['jquery', 'form'], function() {
         }
         _this.chooseData[row.key][row.name] = row.value;
       });
+      // 监听批量数据修改
+      $(document).on('keypress', '[name="priceAll"], [name="skuAll"]', function(e) {
+        e = e || window.event;
+        key = e.keyCode || e.which || e.charCode;
+        if (key == 13) {
+          var row = {
+            name: $(this).attr('name'),
+            value: this.value
+          }
+          for (var i in _this.chooseData) {
+            _this.chooseData[i][row.name.replace('All', '')] = row.value;
+          }
+          $('[name="' + row.name.replace('All', '') + '"]').val(row.value);
+        }
+      });
+      // 监听规格值的新增
+      $(document).on('click', '[add="click"]', function() {
+        var key = parseInt($(this).attr('key')),
+            value = $(this).prev().val();
+            $(this).prev().val('');
+        add(key, value)
+      });
+      // 监听新增规格时input框的输入
+      $(document).on('keypress', '[add="input"]', function(e) {
+        e = e || window.event;
+        key = e.keyCode || e.which || e.charCode;
+        if (key == 13) {
+          var key = parseInt($(this).attr('key')),
+              value = $(this).val();
+              $(this).val('');
+          add(key, value);
+        }
+      });
+      // 新增函数
+      function add(key, value) {
+        if (!value) {
+          layer.msg('规格值不能为空');
+          return;
+        }
+        for (var i in _this.item[key][_this.params.children]) {
+          var row = _this.item[key][_this.params.children][i];
+          if (row[_this.params.childrenParams.label].toLowerCase().indexOf(value.toLowerCase()) !== -1) {
+            layer.msg('规格值不能重复，请重新填写');
+            return
+          }
+        }
+        _this.item[key][_this.params.children].push({ label: value });
+        var input = `<input type="checkbox" name="${ _this.item[key][_this.params.key] }" value="${ value }" lay-skin="primary" title="${ value }" lay-filter="skuform">`;
+        $(_this.elem + ' .layui-form-item:nth-child(' + (key+1) + ') .sku-list' ).append(input);
+        form.render('checkbox');
+      }
+      form.on('input()')
     },
     // 获取总数据
     getData: function() {
@@ -285,9 +293,5 @@ layui.use(['jquery', 'form'], function() {
     }
   }
 
-  var SKU = new sku();
-  SKU.render('#sku', skuItem, skuData);
-  $('#getData').click(function() {
-    console.log(SKU.getData())
-  });
+  exports('sku', sku);
 });
